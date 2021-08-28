@@ -25,6 +25,11 @@ describe('TasksController', () => {
     expect(controller.getAllTasks()).toEqual([]);
   });
 
+  it('it should return a task by id', () => {
+    const createdTask: Task = controller.createTask(createTaskDto);
+    expect(controller.getTaskById(createdTask.id)).toEqual(createdTask);
+  });
+
   describe('createTask()', () => {
     let createdTask: Task;
     let allTasks: Task[];
@@ -45,7 +50,6 @@ describe('TasksController', () => {
     });
 
     it('should return all tasks with the newly created task', () => {
-      expect(allTasks).toHaveLength(1);
       expect(allTasks).toContain(createdTask);
     });
   });

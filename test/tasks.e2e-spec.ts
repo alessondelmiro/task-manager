@@ -4,10 +4,12 @@ import * as request from 'supertest';
 import { TasksModule } from '../src/tasks/tasks.module';
 import { TaskStatus } from '../src/tasks/task.model';
 import { validate } from 'uuid';
-import { createTaskDto } from './fixtures/tasks';
+import { createTaskDto, task } from './fixtures/tasks';
+import { TasksService } from '../src/tasks/tasks.service';
 
 describe('AppController (e2e)', () => {
   let app: INestApplication;
+  let tasksService: TasksService;
 
   beforeEach(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -15,27 +17,51 @@ describe('AppController (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
+    tasksService = moduleFixture.get<TasksService>(TasksService);
     await app.init();
   });
 
   it('/tasks (GET)', () => {
-    return request(app.getHttpServer()).get('/tasks').expect(HttpStatus.OK);
+    const tasksServiceSpy = jest
+      .spyOn(tasksService, 'getAllTasks')
+      .mockImplementation(() => [task]);
+
+    return request(app.getHttpServer())
+      .get('/tasks')
+      .expect(HttpStatus.OK)
+      .expect(() => {
+        expect(tasksServiceSpy).toBeCalledTimes(1);
+      });
   });
 
   it('/tasks (POST)', () => {
+    const tasksServiceSpy = jest
+      .spyOn(tasksService, 'createTask')
+      .mockImplementation(() => task);
+
     return request(app.getHttpServer())
       .post('/tasks')
       .set('Accept', 'application/json')
       .send(createTaskDto)
       .expect(HttpStatus.CREATED)
       .expect(({ body }) => {
-        const { id, title, description, status } = body;
-        const { title: expectedTitle, description: expectedDescription } =
-          createTaskDto;
-        expect(validate(id)).toBeTruthy();
-        expect(title).toEqual(expectedTitle);
-        expect(description).toEqual(expectedDescription);
-        expect(status).toEqual(TaskStatus.OPEN);
+        expect(body).toEqual(task);
+        expect(tasksServiceSpy).toBeCalledWith(createTaskDto);
+      });
+  });
+
+  it('/task/:id (GET)', () => {
+    const tasksServiceSpy = jest
+      .spyOn(tasksService, 'getTaskById')
+      .mockImplementation(() => task);
+
+    return request(app.getHttpServer())
+      .get(`/tasks/${task.id}`)
+      .set('Accept', 'application/json')
+      .expect(HttpStatus.OK)
+      .expect(({ body }) => {
+        expect(body).toEqual(task);
+        expect(tasksServiceSpy).toBeCalledWith(task.id);
       });
   });
 

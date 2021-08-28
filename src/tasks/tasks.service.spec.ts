@@ -47,4 +47,11 @@ describe('TasksService', () => {
       expect(allTasks).toContain(createdTask);
     });
   });
+
+  describe('getTaskById()', () => {
+    it('should find a task by id', () => {
+      const createdTask: Task = service.createTask(createTaskDto);
+      expect(service.getTaskById(createdTask.id)).toEqual(createdTask);
+    });
+  });
 });
