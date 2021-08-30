@@ -17,7 +17,7 @@ export class TasksService {
   }
 
   getTaskById(id: string): Task {
-    return this.findTask(id);
+    return this.findTaskByIdOrThrow(id);
   }
 
   createTask(createTaskDto: CreateTaskDto): Task {
@@ -34,11 +34,13 @@ export class TasksService {
   }
 
   deleteTaskById(id: string): void {
-    this.tasks = this.tasks.filter((task) => task !== this.findTask(id));
+    this.tasks = this.tasks.filter(
+      (task) => task !== this.findTaskByIdOrThrow(id),
+    );
   }
 
   updateTaskStatus(id: string, status: TaskStatus): Task {
-    const task: Task = this.findTask(id);
+    const task: Task = this.findTaskByIdOrThrow(id);
 
     if (!status || !Object.values(TaskStatus).includes(status)) {
       throw new BadRequestException(TASK_ERROR_MESSAGES.INVALID_STATUS);
@@ -48,7 +50,7 @@ export class TasksService {
     return task;
   }
 
-  private findTask(id: string) {
+  private findTaskByIdOrThrow(id: string) {
     const task: Task = this.tasks.find((task) => task.id === id);
 
     if (!task) {
