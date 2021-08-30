@@ -4,12 +4,14 @@ import { TasksController } from './tasks.controller';
 import { TasksService } from './tasks.service';
 import { validate } from 'uuid';
 import { createTaskDto } from '../../test/fixtures/tasks';
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { TASK_ERROR_MESSAGES } from './utils/constants';
 
 describe('TasksController', () => {
   let controller: TasksController;
   let createdTask: Task;
   let allTasks: Task[];
+  let wrongId: string;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -20,6 +22,7 @@ describe('TasksController', () => {
     controller = module.get<TasksController>(TasksController);
     createdTask = controller.createTask(createTaskDto);
     allTasks = controller.getAllTasks();
+    wrongId = 'wrong-id';
   });
 
   it('should be defined', () => {
@@ -28,7 +31,7 @@ describe('TasksController', () => {
 
   describe('getAllTasks()', () => {
     it('should return all tasks', () => {
-      expect(controller.getAllTasks()).toEqual([createdTask]);
+      expect(controller.getAllTasks()).toEqual(allTasks);
     });
   });
 
@@ -38,9 +41,8 @@ describe('TasksController', () => {
     });
 
     it('should throw an error if id is not found', () => {
-      const wrongId = '1234';
       expect(() => controller.getTaskById(wrongId)).toThrow(
-        new NotFoundException('task not found'),
+        new NotFoundException(TASK_ERROR_MESSAGES.NOT_FOUND),
       );
     });
   });
@@ -67,10 +69,42 @@ describe('TasksController', () => {
       expect(controller.getAllTasks().includes(createdTask)).toBe(false);
     });
     it('should throw an error if id is not found', () => {
-      const wrongId = '1234';
       expect(() => controller.deleteTaskById(wrongId)).toThrow(
-        new NotFoundException('task not found'),
+        new NotFoundException(TASK_ERROR_MESSAGES.NOT_FOUND),
       );
+    });
+  });
+
+  describe('updateTaskStatus()', () => {
+    const newStatus = TaskStatus.IN_PROGRESS;
+    it('should update the task to the new status', () => {
+      const updatedTask = controller.updateTaskStatus(
+        createdTask.id,
+        newStatus,
+      );
+      expect(updatedTask.status).toEqual(newStatus);
+    });
+
+    it('should throw an error if id is not found', () => {
+      expect(() => controller.updateTaskStatus(wrongId, newStatus)).toThrow(
+        new NotFoundException(TASK_ERROR_MESSAGES.NOT_FOUND),
+      );
+    });
+
+    it('should throw an error if a invalid status is sent', () => {
+      expect(() => controller.updateTaskStatus(createdTask.id, null)).toThrow(
+        new BadRequestException(TASK_ERROR_MESSAGES.INVALID_STATUS),
+      );
+    });
+
+    it('should throw an error if status is not sent', () => {
+      const invalidStatus = 'invalid';
+      expect(() =>
+        controller.updateTaskStatus(
+          createdTask.id,
+          invalidStatus as TaskStatus,
+        ),
+      ).toThrow(new BadRequestException(TASK_ERROR_MESSAGES.INVALID_STATUS));
     });
   });
 });

@@ -1,123 +1,144 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import {
-  HttpStatus,
-  INestApplication,
-  NotFoundException,
-} from '@nestjs/common';
+import { HttpStatus, INestApplication } from '@nestjs/common';
 import * as request from 'supertest';
 import { TasksModule } from '../src/tasks/tasks.module';
-import { createTaskDto, task } from './fixtures/tasks';
+import { createTaskDto } from './fixtures/tasks';
 import { TasksService } from '../src/tasks/tasks.service';
+import { Task, TaskStatus } from '../src/tasks/task.model';
+import { TASK_ERROR_MESSAGES } from '../src/tasks/utils/constants';
+import { validate } from 'uuid';
 
 describe('AppController (e2e)', () => {
   let app: INestApplication;
   let tasksService: TasksService;
+  let createdTask: Task;
+  let newStatus: TaskStatus;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [TasksModule],
     }).compile();
 
     app = moduleFixture.createNestApplication();
     tasksService = moduleFixture.get<TasksService>(TasksService);
+    createdTask = tasksService.createTask(createTaskDto);
+    newStatus = TaskStatus.IN_PROGRESS;
     await app.init();
   });
 
   describe('when the request is successful', () => {
-    it('/tasks (GET)', () => {
-      const tasksServiceSpy = jest
-        .spyOn(tasksService, 'getAllTasks')
-        .mockImplementation(() => [task]);
-
+    it('GET /tasks', () => {
       return request(app.getHttpServer())
         .get('/tasks')
         .expect(HttpStatus.OK)
         .expect(({ body }) => {
-          expect(body).toEqual([task]);
-          expect(tasksServiceSpy).toBeCalledTimes(1);
+          expect(body).toEqual([createdTask]);
         });
     });
 
-    it('/tasks (POST)', () => {
-      const tasksServiceSpy = jest
-        .spyOn(tasksService, 'createTask')
-        .mockImplementation(() => task);
-
+    it('POST /tasks', () => {
       return request(app.getHttpServer())
         .post('/tasks')
         .set('Accept', 'application/json')
         .send(createTaskDto)
         .expect(HttpStatus.CREATED)
         .expect(({ body }) => {
-          expect(body).toEqual(task);
-          expect(tasksServiceSpy).toBeCalledWith(createTaskDto);
+          expect(validate(body.id)).toBe(true);
+          expect(body.title).toEqual(createTaskDto.title);
+          expect(body.description).toEqual(createTaskDto.description);
+          expect(body.status).toEqual(TaskStatus.OPEN);
         });
     });
 
-    it('/task/:id (GET)', () => {
-      const tasksServiceSpy = jest
-        .spyOn(tasksService, 'getTaskById')
-        .mockImplementation(() => task);
-
+    it('GET /task/:id', () => {
       return request(app.getHttpServer())
-        .get(`/tasks/${task.id}`)
+        .get(`/tasks/${createdTask.id}`)
         .set('Accept', 'application/json')
         .expect(HttpStatus.OK)
         .expect(({ body }) => {
-          expect(body).toEqual(task);
-          expect(tasksServiceSpy).toBeCalledWith(task.id);
+          expect(body).toEqual(createdTask);
         });
     });
 
-    it('/task/:id (DELETE)', () => {
-      const tasksServiceSpy = jest
-        .spyOn(tasksService, 'deleteTaskById')
-        .mockImplementation(() => true);
+    it('DELETE /task/:id', () => {
+      const taskToDelete: Task = tasksService.createTask(createTaskDto);
 
       return request(app.getHttpServer())
-        .delete(`/tasks/${task.id}`)
+        .delete(`/tasks/${taskToDelete.id}`)
         .set('Accept', 'application/json')
-        .expect(HttpStatus.NO_CONTENT)
-        .expect(() => {
-          expect(tasksServiceSpy).toBeCalledWith(task.id);
+        .expect(HttpStatus.NO_CONTENT);
+    });
+
+    it('PATCH /tasks/:id/status', () => {
+      return request(app.getHttpServer())
+        .patch(`/tasks/${createdTask.id}/status`)
+        .set('Accept', 'application/json')
+        .send({ status: newStatus })
+        .expect(HttpStatus.OK)
+        .expect(({ body }) => {
+          expect(body.status).toEqual(newStatus);
         });
     });
   });
 
   describe('when the request fails', () => {
-    const errorMessage = 'task not found';
-    it('/task/:id (GET)', () => {
-      const tasksServiceSpy = jest
-        .spyOn(tasksService, 'getTaskById')
-        .mockImplementation(() => {
-          throw new NotFoundException(errorMessage);
-        });
+    const wrongId = 'wrong-id';
 
+    it('GET /task/:id', () => {
       return request(app.getHttpServer())
-        .get(`/tasks/wrongId`)
+        .get(`/tasks/${wrongId}`)
         .set('Accept', 'application/json')
         .expect(HttpStatus.NOT_FOUND)
         .expect(({ body }) => {
-          expect(body.message).toEqual(errorMessage);
-          expect(tasksServiceSpy).toBeCalledTimes(1);
+          expect(body.message).toEqual(TASK_ERROR_MESSAGES.NOT_FOUND);
         });
     });
 
-    it('/task/:id (DELETE)', () => {
-      const tasksServiceSpy = jest
-        .spyOn(tasksService, 'deleteTaskById')
-        .mockImplementation(() => {
-          throw new NotFoundException(errorMessage);
-        });
-
+    it('DELETE /task/:id', () => {
       return request(app.getHttpServer())
-        .delete(`/tasks/${task.id}`)
+        .delete(`/tasks/${wrongId}`)
         .set('Accept', 'application/json')
         .expect(HttpStatus.NOT_FOUND)
         .expect(({ body }) => {
-          expect(body.message).toEqual(errorMessage);
-          expect(tasksServiceSpy).toBeCalledWith(task.id);
+          expect(body.message).toEqual(TASK_ERROR_MESSAGES.NOT_FOUND);
         });
+    });
+
+    it('PATCH /task/:id/status [Invalid id]', () => {
+      return request(app.getHttpServer())
+        .patch(`/tasks/${wrongId}/status`)
+        .set('Accept', 'application/json')
+        .send({ status: newStatus })
+        .expect(HttpStatus.NOT_FOUND)
+        .expect(({ body }) => {
+          expect(body.message).toEqual(TASK_ERROR_MESSAGES.NOT_FOUND);
+        });
+    });
+
+    it('PATCH /task/:id/status [Invalid status]', () => {
+      const invalidStatus = 'INVALID_STATUS';
+
+      return request(app.getHttpServer())
+        .patch(`/tasks/${createdTask.id}/status`)
+        .set('Accept', 'application/json')
+        .send({ status: invalidStatus })
+        .expect(HttpStatus.BAD_REQUEST)
+        .expect(({ body }) => {
+          expect(body.message).toEqual(TASK_ERROR_MESSAGES.INVALID_STATUS);
+        });
+    });
+
+    it('PATCH /task/:id/status [No status on body] ', () => {
+      return (
+        request(app.getHttpServer())
+          .patch(`/tasks/${createdTask.id}/status`)
+          .set('Accept', 'application/json')
+          // .send({ status: invalidStatus })
+          .expect(HttpStatus.BAD_REQUEST)
+          .expect(({ body }) => {
+            expect(body.message).toEqual(TASK_ERROR_MESSAGES.INVALID_STATUS);
+          })
+      );
     });
   });
 

@@ -3,12 +3,14 @@ import { TasksService } from '../../src/tasks/tasks.service';
 import { Task, TaskStatus } from './task.model';
 import { validate } from 'uuid';
 import { createTaskDto } from '../../test/fixtures/tasks';
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { TASK_ERROR_MESSAGES } from './utils/constants';
 
 describe('TasksService', () => {
   let service: TasksService;
   let createdTask: Task;
   let allTasks: Task[];
+  let wrongId: string;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -18,6 +20,7 @@ describe('TasksService', () => {
     service = module.get<TasksService>(TasksService);
     createdTask = service.createTask(createTaskDto);
     allTasks = service.getAllTasks();
+    wrongId = 'wrong-id';
   });
 
   it('should be defined', () => {
@@ -27,6 +30,18 @@ describe('TasksService', () => {
   describe('getAllTasks()', () => {
     it('should return all tasks', () => {
       expect(service.getAllTasks()).toEqual([createdTask]);
+    });
+  });
+
+  describe('getTaskById()', () => {
+    it('should find a task by id', () => {
+      expect(service.getTaskById(createdTask.id)).toEqual(createdTask);
+    });
+
+    it('should throw an error if id is not found', () => {
+      expect(() => service.getTaskById(wrongId)).toThrow(
+        new NotFoundException(TASK_ERROR_MESSAGES.NOT_FOUND),
+      );
     });
   });
 
@@ -47,19 +62,6 @@ describe('TasksService', () => {
     });
   });
 
-  describe('getTaskById()', () => {
-    it('should find a task by id', () => {
-      expect(service.getTaskById(createdTask.id)).toEqual(createdTask);
-    });
-
-    it('should throw an error if id is not found', () => {
-      const wrongId = '1234';
-      expect(() => service.getTaskById(wrongId)).toThrow(
-        new NotFoundException('task not found'),
-      );
-    });
-  });
-
   describe('deleteTaskById()', () => {
     it('should delete a task by id', () => {
       service.deleteTaskById(createdTask.id);
@@ -67,10 +69,36 @@ describe('TasksService', () => {
     });
 
     it('should throw an error if id is not found', () => {
-      const wrongId = '1234';
       expect(() => service.deleteTaskById(wrongId)).toThrow(
-        new NotFoundException('task not found'),
+        new NotFoundException(TASK_ERROR_MESSAGES.NOT_FOUND),
       );
+    });
+  });
+
+  describe('updateTaskStatus()', () => {
+    const newStatus = TaskStatus.IN_PROGRESS;
+    it('should update the task to the new status', () => {
+      const updatedTask = service.updateTaskStatus(createdTask.id, newStatus);
+      expect(updatedTask.status).toEqual(newStatus);
+    });
+
+    it('should throw an error if id is not found', () => {
+      expect(() => service.updateTaskStatus(wrongId, newStatus)).toThrow(
+        new NotFoundException(TASK_ERROR_MESSAGES.NOT_FOUND),
+      );
+    });
+
+    it('should throw an error if status is not sent', () => {
+      expect(() => service.updateTaskStatus(createdTask.id, null)).toThrow(
+        new BadRequestException(TASK_ERROR_MESSAGES.INVALID_STATUS),
+      );
+    });
+
+    it('should throw an error if status is not sent', () => {
+      const invalidStatus = 'invalid';
+      expect(() =>
+        service.updateTaskStatus(createdTask.id, invalidStatus as TaskStatus),
+      ).toThrow(new BadRequestException(TASK_ERROR_MESSAGES.INVALID_STATUS));
     });
   });
 });
