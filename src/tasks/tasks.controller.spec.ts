@@ -21,7 +21,7 @@ describe('TasksController', () => {
 
     controller = module.get<TasksController>(TasksController);
     createdTask = controller.createTask(createTaskDto);
-    allTasks = controller.getAllTasks();
+    allTasks = controller.getTasks();
     wrongId = 'wrong-id';
   });
 
@@ -31,7 +31,7 @@ describe('TasksController', () => {
 
   describe('getAllTasks()', () => {
     it('should return all tasks', () => {
-      expect(controller.getAllTasks()).toEqual(allTasks);
+      expect(controller.getTasks()).toEqual(allTasks);
     });
   });
 
@@ -66,7 +66,7 @@ describe('TasksController', () => {
   describe('deleteTaskById()', () => {
     it('should delete a task by id', () => {
       controller.deleteTaskById(createdTask.id);
-      expect(controller.getAllTasks().includes(createdTask)).toBe(false);
+      expect(controller.getTasks().includes(createdTask)).toBe(false);
     });
     it('should throw an error if id is not found', () => {
       expect(() => controller.deleteTaskById(wrongId)).toThrow(

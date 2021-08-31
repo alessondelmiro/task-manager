@@ -2,13 +2,15 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { TasksService } from '../../src/tasks/tasks.service';
 import { Task, TaskStatus } from './task.model';
 import { validate } from 'uuid';
-import { createTaskDto } from '../../test/fixtures/tasks';
+import { createTaskDto, filterTaskCreateDto } from '../../test/fixtures/tasks';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { TASK_ERROR_MESSAGES } from './utils/constants';
+import { GetTasksFilterDto } from './dto/get-tasks-filter.dto';
 
 describe('TasksService', () => {
   let service: TasksService;
   let createdTask: Task;
+  let taskToFilter: Task;
   let allTasks: Task[];
   let wrongId: string;
 
@@ -19,7 +21,8 @@ describe('TasksService', () => {
 
     service = module.get<TasksService>(TasksService);
     createdTask = service.createTask(createTaskDto);
-    allTasks = service.getAllTasks();
+    taskToFilter = service.createTask(filterTaskCreateDto);
+    allTasks = service.getTasks();
     wrongId = 'wrong-id';
   });
 
@@ -29,7 +32,32 @@ describe('TasksService', () => {
 
   describe('getAllTasks()', () => {
     it('should return all tasks', () => {
-      expect(service.getAllTasks()).toEqual([createdTask]);
+      expect(service.getTasks()).toEqual(allTasks);
+    });
+
+    it('should return a filtered task by name', () => {
+      const filterByName: GetTasksFilterDto = {
+        search: 'Filter by Name',
+      };
+      expect(service.getTasks(filterByName)).toEqual([taskToFilter]);
+    });
+
+    it('should return a filtered task by description', () => {
+      const filterByDescription: GetTasksFilterDto = {
+        search: 'Filter By description',
+      };
+      expect(service.getTasks(filterByDescription)).toEqual([taskToFilter]);
+    });
+
+    it('should return a filtered task by status', () => {
+      const updatedTaskToFilter: Task = service.updateTaskStatus(
+        taskToFilter.id,
+        TaskStatus.DONE,
+      );
+      const filterByStatus: GetTasksFilterDto = {
+        status: TaskStatus.DONE,
+      };
+      expect(service.getTasks(filterByStatus)).toEqual([updatedTaskToFilter]);
     });
   });
 
@@ -57,7 +85,6 @@ describe('TasksService', () => {
     });
 
     it('should return all tasks with the newly created task', () => {
-      expect(allTasks).toHaveLength(1);
       expect(allTasks).toContain(createdTask);
     });
   });
@@ -65,7 +92,7 @@ describe('TasksService', () => {
   describe('deleteTaskById()', () => {
     it('should delete a task by id', () => {
       service.deleteTaskById(createdTask.id);
-      expect(service.getAllTasks().includes(createdTask)).toBe(false);
+      expect(service.getTasks().includes(createdTask)).toBe(false);
     });
 
     it('should throw an error if id is not found', () => {
