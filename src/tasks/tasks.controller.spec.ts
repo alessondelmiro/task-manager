@@ -3,13 +3,15 @@ import { Task, TaskStatus } from './task.model';
 import { TasksController } from './tasks.controller';
 import { TasksService } from './tasks.service';
 import { validate } from 'uuid';
-import { createTaskDto } from '../../test/fixtures/tasks';
+import { createTaskDto, filterTaskCreateDto } from '../../test/fixtures/tasks';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { TASK_ERROR_MESSAGES } from './utils/constants';
+import { GetTasksFilterDto } from './dto/get-tasks-filter.dto';
 
 describe('TasksController', () => {
   let controller: TasksController;
   let createdTask: Task;
+  let taskToFilter: Task;
   let allTasks: Task[];
   let wrongId: string;
 
@@ -21,6 +23,7 @@ describe('TasksController', () => {
 
     controller = module.get<TasksController>(TasksController);
     createdTask = controller.createTask(createTaskDto);
+    taskToFilter = controller.createTask(filterTaskCreateDto);
     allTasks = controller.getTasks();
     wrongId = 'wrong-id';
   });
@@ -32,6 +35,33 @@ describe('TasksController', () => {
   describe('getAllTasks()', () => {
     it('should return all tasks', () => {
       expect(controller.getTasks()).toEqual(allTasks);
+    });
+
+    it('should return a filtered task by title', () => {
+      const filterByName: GetTasksFilterDto = {
+        search: 'Filter by Title',
+      };
+      expect(controller.getTasks(filterByName)).toEqual([taskToFilter]);
+    });
+
+    it('should return a filtered task by description', () => {
+      const filterByDescription: GetTasksFilterDto = {
+        search: 'Filter By description',
+      };
+      expect(controller.getTasks(filterByDescription)).toEqual([taskToFilter]);
+    });
+
+    it('should return a filtered task by status', () => {
+      const updatedTaskToFilter: Task = controller.updateTaskStatus(
+        taskToFilter.id,
+        TaskStatus.DONE,
+      );
+      const filterByStatus: GetTasksFilterDto = {
+        status: TaskStatus.DONE,
+      };
+      expect(controller.getTasks(filterByStatus)).toEqual([
+        updatedTaskToFilter,
+      ]);
     });
   });
 

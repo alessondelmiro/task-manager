@@ -35,9 +35,9 @@ describe('TasksService', () => {
       expect(service.getTasks()).toEqual(allTasks);
     });
 
-    it('should return a filtered task by name', () => {
+    it('should return a filtered task by title', () => {
       const filterByName: GetTasksFilterDto = {
-        search: 'Filter by Name',
+        search: 'Filter by Title',
       };
       expect(service.getTasks(filterByName)).toEqual([taskToFilter]);
     });

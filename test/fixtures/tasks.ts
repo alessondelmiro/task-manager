@@ -7,7 +7,7 @@ export const createTaskDto: CreateTaskDto = {
 };
 
 export const filterTaskCreateDto: CreateTaskDto = {
-  title: 'a Filter by name a',
+  title: 'a Filter by title a',
   description: 'a Filter by description a',
 };
 

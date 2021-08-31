@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { HttpStatus, INestApplication } from '@nestjs/common';
 import * as request from 'supertest';
 import { TasksModule } from '../src/tasks/tasks.module';
-import { createTaskDto } from './fixtures/tasks';
+import { createTaskDto, filterTaskCreateDto } from './fixtures/tasks';
 import { TasksService } from '../src/tasks/tasks.service';
 import { Task, TaskStatus } from '../src/tasks/task.model';
 import { TASK_ERROR_MESSAGES } from '../src/tasks/utils/constants';
@@ -12,6 +12,8 @@ describe('AppController (e2e)', () => {
   let app: INestApplication;
   let tasksService: TasksService;
   let createdTask: Task;
+  let taskToFilter: Task;
+  let allTasks: Task[];
   let newStatus: TaskStatus;
 
   beforeAll(async () => {
@@ -22,17 +24,53 @@ describe('AppController (e2e)', () => {
     app = moduleFixture.createNestApplication();
     tasksService = moduleFixture.get<TasksService>(TasksService);
     createdTask = tasksService.createTask(createTaskDto);
+    taskToFilter = tasksService.createTask(filterTaskCreateDto);
+    allTasks = tasksService.getTasks();
     newStatus = TaskStatus.IN_PROGRESS;
     await app.init();
   });
 
   describe('when the request is successful', () => {
-    it('GET /tasks', () => {
+    it('GET /tasks [Without filter]', () => {
       return request(app.getHttpServer())
         .get('/tasks')
         .expect(HttpStatus.OK)
         .expect(({ body }) => {
-          expect(body).toEqual([createdTask]);
+          expect(body).toEqual(allTasks);
+        });
+    });
+
+    it('GET /tasks [Filter by title]', () => {
+      return request(app.getHttpServer())
+        .get('/tasks')
+        .query({ search: 'Filter by Title' })
+        .expect(HttpStatus.OK)
+        .expect(({ body }) => {
+          expect(body).toEqual([taskToFilter]);
+        });
+    });
+
+    it('GET /tasks [Filter by description]', () => {
+      return request(app.getHttpServer())
+        .get('/tasks')
+        .query({ search: 'Filter By description' })
+        .expect(HttpStatus.OK)
+        .expect(({ body }) => {
+          expect(body).toEqual([taskToFilter]);
+        });
+    });
+
+    it('GET /tasks [Filter by status]', () => {
+      const updatedTaskToFilter: Task = tasksService.updateTaskStatus(
+        taskToFilter.id,
+        TaskStatus.DONE,
+      );
+      return request(app.getHttpServer())
+        .get('/tasks')
+        .query({ status: TaskStatus.DONE })
+        .expect(HttpStatus.OK)
+        .expect(({ body }) => {
+          expect(body).toEqual([updatedTaskToFilter]);
         });
     });
 
