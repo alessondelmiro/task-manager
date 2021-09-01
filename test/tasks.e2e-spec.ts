@@ -165,7 +165,7 @@ describe('AppController (e2e)', () => {
         .send({ status: invalidStatus })
         .expect(HttpStatus.BAD_REQUEST)
         .expect(({ body }) => {
-          expect(body.message).toEqual(TASK_ERROR_MESSAGES.INVALID_STATUS);
+          expect(body.message).toContain(TASK_ERROR_MESSAGES.INVALID_STATUS);
         });
     });
 
@@ -175,7 +175,7 @@ describe('AppController (e2e)', () => {
         .set('Accept', 'application/json')
         .expect(HttpStatus.BAD_REQUEST)
         .expect(({ body }) => {
-          expect(body.message).toEqual(TASK_ERROR_MESSAGES.INVALID_STATUS);
+          expect(body.message).toContain(TASK_ERROR_MESSAGES.INVALID_STATUS);
         });
     });
 

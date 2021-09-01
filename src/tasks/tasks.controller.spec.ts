@@ -7,6 +7,7 @@ import { createTaskDto, filterTaskCreateDto } from '../../test/fixtures/tasks';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { TASK_ERROR_MESSAGES } from './utils/constants';
 import { GetTasksFilterDto } from './dto/get-tasks-filter.dto';
+import { UpdateTaskStatusDto } from './dto/update-task-status.dto';
 
 describe('TasksController', () => {
   let controller: TasksController;
@@ -52,9 +53,12 @@ describe('TasksController', () => {
     });
 
     it('should return a filtered task by status', () => {
+      const updateTaskStatusDto: UpdateTaskStatusDto = {
+        status: TaskStatus.DONE,
+      };
       const updatedTaskToFilter: Task = controller.updateTaskStatus(
         taskToFilter.id,
-        TaskStatus.DONE,
+        updateTaskStatusDto,
       );
       const filterByStatus: GetTasksFilterDto = {
         status: TaskStatus.DONE,
@@ -106,35 +110,21 @@ describe('TasksController', () => {
   });
 
   describe('updateTaskStatus()', () => {
-    const newStatus = TaskStatus.IN_PROGRESS;
+    const updateTaskStatusDto: UpdateTaskStatusDto = {
+      status: TaskStatus.DONE,
+    };
     it('should update the task to the new status', () => {
       const updatedTask = controller.updateTaskStatus(
         createdTask.id,
-        newStatus,
+        updateTaskStatusDto,
       );
-      expect(updatedTask.status).toEqual(newStatus);
+      expect(updatedTask.status).toEqual(TaskStatus.DONE);
     });
 
     it('should throw an error if id is not found', () => {
-      expect(() => controller.updateTaskStatus(wrongId, newStatus)).toThrow(
-        new NotFoundException(TASK_ERROR_MESSAGES.NOT_FOUND),
-      );
-    });
-
-    it('should throw an error if a invalid status is sent', () => {
-      expect(() => controller.updateTaskStatus(createdTask.id, null)).toThrow(
-        new BadRequestException(TASK_ERROR_MESSAGES.INVALID_STATUS),
-      );
-    });
-
-    it('should throw an error if status is not sent', () => {
-      const invalidStatus = 'invalid';
       expect(() =>
-        controller.updateTaskStatus(
-          createdTask.id,
-          invalidStatus as TaskStatus,
-        ),
-      ).toThrow(new BadRequestException(TASK_ERROR_MESSAGES.INVALID_STATUS));
+        controller.updateTaskStatus(wrongId, updateTaskStatusDto),
+      ).toThrow(new NotFoundException(TASK_ERROR_MESSAGES.NOT_FOUND));
     });
   });
 });
