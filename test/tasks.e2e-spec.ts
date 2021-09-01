@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { HttpStatus, INestApplication } from '@nestjs/common';
+import { HttpStatus, INestApplication, ValidationPipe } from '@nestjs/common';
 import * as request from 'supertest';
 import { TasksModule } from '../src/tasks/tasks.module';
 import { createTaskDto, filterTaskCreateDto } from './fixtures/tasks';
@@ -7,6 +7,7 @@ import { TasksService } from '../src/tasks/tasks.service';
 import { Task, TaskStatus } from '../src/tasks/task.model';
 import { TASK_ERROR_MESSAGES } from '../src/tasks/utils/constants';
 import { validate } from 'uuid';
+import { CreateTaskDto } from 'src/tasks/dto/create-task.dto';
 
 describe('AppController (e2e)', () => {
   let app: INestApplication;
@@ -22,6 +23,8 @@ describe('AppController (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
+    app.useGlobalPipes(new ValidationPipe());
+
     tasksService = moduleFixture.get<TasksService>(TasksService);
     createdTask = tasksService.createTask(createTaskDto);
     taskToFilter = tasksService.createTask(filterTaskCreateDto);
@@ -88,7 +91,7 @@ describe('AppController (e2e)', () => {
         });
     });
 
-    it('GET /task/:id', () => {
+    it('GET /tasks/:id', () => {
       return request(app.getHttpServer())
         .get(`/tasks/${createdTask.id}`)
         .set('Accept', 'application/json')
@@ -98,7 +101,7 @@ describe('AppController (e2e)', () => {
         });
     });
 
-    it('DELETE /task/:id', () => {
+    it('DELETE /tasks/:id', () => {
       const taskToDelete: Task = tasksService.createTask(createTaskDto);
 
       return request(app.getHttpServer())
@@ -122,7 +125,7 @@ describe('AppController (e2e)', () => {
   describe('when the request fails', () => {
     const wrongId = 'wrong-id';
 
-    it('GET /task/:id', () => {
+    it('GET /tasks/:id', () => {
       return request(app.getHttpServer())
         .get(`/tasks/${wrongId}`)
         .set('Accept', 'application/json')
@@ -132,7 +135,7 @@ describe('AppController (e2e)', () => {
         });
     });
 
-    it('DELETE /task/:id', () => {
+    it('DELETE /tasks/:id', () => {
       return request(app.getHttpServer())
         .delete(`/tasks/${wrongId}`)
         .set('Accept', 'application/json')
@@ -142,7 +145,7 @@ describe('AppController (e2e)', () => {
         });
     });
 
-    it('PATCH /task/:id/status [Invalid id]', () => {
+    it('PATCH /tasks/:id/status [Invalid id]', () => {
       return request(app.getHttpServer())
         .patch(`/tasks/${wrongId}/status`)
         .set('Accept', 'application/json')
@@ -153,7 +156,7 @@ describe('AppController (e2e)', () => {
         });
     });
 
-    it('PATCH /task/:id/status [Invalid status]', () => {
+    it('PATCH /tasks/:id/status [Invalid status]', () => {
       const invalidStatus = 'INVALID_STATUS';
 
       return request(app.getHttpServer())
@@ -166,17 +169,44 @@ describe('AppController (e2e)', () => {
         });
     });
 
-    it('PATCH /task/:id/status [No status on body] ', () => {
-      return (
-        request(app.getHttpServer())
-          .patch(`/tasks/${createdTask.id}/status`)
-          .set('Accept', 'application/json')
-          // .send({ status: invalidStatus })
-          .expect(HttpStatus.BAD_REQUEST)
-          .expect(({ body }) => {
-            expect(body.message).toEqual(TASK_ERROR_MESSAGES.INVALID_STATUS);
-          })
-      );
+    it('PATCH /tasks/:id/status [No status on body] ', () => {
+      return request(app.getHttpServer())
+        .patch(`/tasks/${createdTask.id}/status`)
+        .set('Accept', 'application/json')
+        .expect(HttpStatus.BAD_REQUEST)
+        .expect(({ body }) => {
+          expect(body.message).toEqual(TASK_ERROR_MESSAGES.INVALID_STATUS);
+        });
+    });
+
+    it('POST /tasks [Empty title] ', () => {
+      const invalidCreateDto: CreateTaskDto = {
+        title: '',
+        description: 'description',
+      };
+      return request(app.getHttpServer())
+        .post('/tasks/')
+        .set('Accept', 'application/json')
+        .send(invalidCreateDto)
+        .expect(HttpStatus.BAD_REQUEST)
+        .expect(({ body }) => {
+          expect(body.message).toContain(TASK_ERROR_MESSAGES.EMPTY_TITLE);
+        });
+    });
+
+    it('POST /tasks [Empty description] ', () => {
+      const invalidCreateDto: CreateTaskDto = {
+        title: 'title',
+        description: '',
+      };
+      return request(app.getHttpServer())
+        .post('/tasks/')
+        .set('Accept', 'application/json')
+        .send(invalidCreateDto)
+        .expect(HttpStatus.BAD_REQUEST)
+        .expect(({ body }) => {
+          expect(body.message).toContain(TASK_ERROR_MESSAGES.EMPTY_DESCRIPTION);
+        });
     });
   });
 
