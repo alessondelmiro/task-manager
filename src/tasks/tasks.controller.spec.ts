@@ -4,7 +4,7 @@ import { TasksController } from './tasks.controller';
 import { TasksService } from './tasks.service';
 import { validate } from 'uuid';
 import { createTaskDto, filterTaskCreateDto } from '../../test/fixtures/tasks';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { NotFoundException } from '@nestjs/common';
 import { TASK_ERROR_MESSAGES } from './utils/constants';
 import { GetTasksFilterDto } from './dto/get-tasks-filter.dto';
 import { UpdateTaskStatusDto } from './dto/update-task-status.dto';
